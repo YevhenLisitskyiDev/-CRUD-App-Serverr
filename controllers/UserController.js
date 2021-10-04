@@ -7,15 +7,20 @@ const {
   generateHashedPassword,
   verifyPassword,
 } = require("../utils");
+const {
+  checkIsEmpty,
+  checkSameUser,
+  emailValidator,
+} = require("../utils/validators");
 
 const getUserById = async (req, res) => {
   let user = await User.findById(req.params.id).populate("profiles");
-  if (!user) return res.status(400).json({ message: "User not found" });
+  if (!user) return res.status(404).json({ message: "User not found" });
   user.password = undefined;
   res.status(200).json(user);
 };
 
-const getAllUsers = async (req, res) => {
+const getAllUsers = async (_, res) => {
   let users = await User.find();
   users = users.map((user) => ({
     ...user._doc,
@@ -27,6 +32,10 @@ const getAllUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
   const userBody = req.body;
+
+  const validation = await validateUser(userBody);
+  if (validation) return res.status(400).json({ message: validation });
+
   const hashedPassword = await generateHashedPassword(userBody.password);
   const user = new User({
     ...userBody,
@@ -35,24 +44,42 @@ const createUser = async (req, res) => {
   });
   await user.save();
   const token = generateToken({ id: user._id, isAdmin: user.isAdmin });
-  res.status(200).json({ message: "User Created", user, token });
+  res.status(201).json({ message: "User Created", user, token });
 };
 
 const updateUser = async (req, res) => {
   const { id } = req.params;
   const userBody = req.body;
-  const user = await User.findByIdAndUpdate(id, userBody);
-  if (!user) return res.status(400).json({ message: "User not found" });
+
+  const validation = await validateUser(userBody, id);
+  if (validation) return res.status(400).json({ message: validation });
+
+  const user = await User.findByIdAndUpdate(id, userBody, { new: true });
+  if (!user) return res.status(404).json({ message: "User not found" });
   res.status(200).json({
     message: "User Updated",
-    user: { ...user._doc, ...userBody },
+    user,
   });
+};
+
+async function validateUser(user, id){
+  const isUserEmpty = checkIsEmpty(user);
+  if (isUserEmpty) return isUserEmpty;
+
+  const { username, email } = user;
+  const isUserAlreadyExist = await checkSameUser({ username, email }, id);
+  if (isUserAlreadyExist) return isUserAlreadyExist;
+
+  const emailValidation = emailValidator(email);
+  if (!emailValidation) return "Email don't valid";
+
+  return false;
 };
 
 const deleteUser = async (req, res) => {
   const { id } = req.params;
   const user = await User.findById(id);
-  if (!user) return res.status(400).json({ message: "User not found" });
+  if (!user) return res.status(404).json({ message: "User not found" });
   await User.deleteOne({ _id: id });
   for (const profile of user.profiles) {
     await Profile.deleteOne({ _id: profile._id });
@@ -62,13 +89,12 @@ const deleteUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
-
   const user = await User.findOne({ email }).populate("profiles");
   if (!user) return res.status(400).json({ message: "User not found" });
+
   const isPasswordRight = await verifyPassword(password, user.password);
   if (isPasswordRight) {
     const token = generateToken({ id: user._id, isAdmin: user.isAdmin });
-
     return res.status(200).json({ user: user._doc, token });
   } else return res.status(400).json({ message: "Password is incorrect" });
 };

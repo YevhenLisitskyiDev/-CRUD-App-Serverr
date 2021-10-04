@@ -7,7 +7,6 @@ const handleError = (callback, errorMessage) => {
     try {
       await callback(req, res);
     } catch (error) {
-      console.log("here");
       res.status(500).json({ message: errorMessage, error: error.message });
     }
   };
@@ -33,10 +32,16 @@ const verifyPassword = async (passwordToVerify, password) => {
   return await bcrypt.compare(passwordToVerify, password);
 };
 
+const getDate = (date) => {
+  const [year, month, day] = date.split("-");
+  return new Date(year, month - 1, day)
+};
+
 module.exports = {
   handleError,
   generateToken,
   verifyToken,
   generateHashedPassword,
   verifyPassword,
+  getDate,
 };
