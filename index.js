@@ -13,15 +13,27 @@ app.use(config.get("ROUTES.USER"), require("./routes/UserRoutes"));
 app.use(config.get("ROUTES.PROFILES"), require("./routes/ProfileRoutes"));
 app.use(config.get("ROUTES.STATS"), require("./routes/StatsRoutes"));
 
+async function connect() {
+  await mongoose.connect(config.get("DATABASE.MONGODB"), {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });  
+}
+async function closeConnection() {
+  await mongoose.connection.close();  
+}
+
 async function start() {
   try {
-    await mongoose.connect(config.get("DATABASE.MONGODB"), {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await connect();
     app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
   } catch (error) {
     console.log(`Error: ${error.message}`);
   }
 }
-start();
+
+if (process.env.NODE_ENV !== "test") {
+  start();
+}
+
+module.exports = { app, connect, closeConnection };

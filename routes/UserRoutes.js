@@ -1,9 +1,5 @@
 const { Router } = require("express");
-const {
-  authMiddleware,
-  adminMiddleware,
-  adminOrSelfMiddleware,
-} = require("../middlewares/index");
+const { authMiddleware, adminMiddleware } = require("../middlewares/index");
 const {
   getUserById,
   getAllUsers,
@@ -18,7 +14,7 @@ const router = new Router();
 
 router.get("/all", authMiddleware, adminMiddleware, getAllUsers);
 router.get("/auth", authMiddleware, authUser);
-router.get("/find/:id",authMiddleware, adminMiddleware,adminOrSelfMiddleware,getUserById);
+router.get("/find/:id", authMiddleware, adminMiddleware, getUserById);
 router.put("/update/:id", authMiddleware, adminMiddleware, updateUser);
 router.delete("/delete/:id", authMiddleware, adminMiddleware, deleteUser);
 
